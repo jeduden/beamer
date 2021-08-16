@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:beamer/beamer.dart';
-//  broken after beamBack. next beam does not animate hero. (actually no page transitioning is happening!)
+//  broken after beamBack. next beam does not animate hero. 
+// (actually no page transitioning is happening!)
 main() {
   runApp(MyApp());
 }
