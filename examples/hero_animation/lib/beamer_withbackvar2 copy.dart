@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:beamer/beamer.dart';
 
-//beamer with custom page but instead of beamBack it 
-//uses popBeamLocation. this is intended. popBeamLocation only pops complete locations.
-//since RoutesLocationBuilder only has one BeamLocation there is nothing to pop.
-
+//beamer with custom page: same issue:
+//  broken after beamBack. next beam does not animate hero. 
+// (actually no page transitioning is happening!)
 void main() => runApp(MyApp());
 
 class CustomPage extends BeamPage {
@@ -40,13 +39,18 @@ class MyApp extends StatelessWidget {
     buildListener: (_, _2) => print("Rebuid"),
     locationBuilder: RoutesLocationBuilder(routes: {
       '/': (context, state) => CustomPage(
+          title: "Page /",
           key: ValueKey("/"),
           child: Scaffold(
               body: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                Text("CustomPage with beamBack"),
                 ElevatedButton(
-                    onPressed: () => context.beamToNamed('/2'),
+                    onPressed: (){
+                      print("Clicked on change");
+                      context.beamToNamed('/2');
+                    },
                     child: Text("change")),
                 Stack(children: [
                   Hero(
@@ -59,14 +63,18 @@ class MyApp extends StatelessWidget {
                 ])
               ]))),
       '/2': (context, state) => CustomPage(
+          title: "Page /2",
           key: ValueKey("/2"),
           child: Scaffold(
               body: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                 ElevatedButton(
-                    //beamToBack ... breaks hero
-                    onPressed: () => context.popBeamLocation(),
+                    onPressed: (){
+                      print("Clicked on back");
+                      //breaks hero
+                      context.beamBack();
+                    },
                     child: Text("back")),
                 Stack(children: [
                   Hero(

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:beamer/beamer.dart';
 
-//beamer with custom page: same issue:
-//  broken after beamBack. next beam does not animate hero. 
-// (actually no page transitioning is happening!)
+//beamer with custom page. back is using Navigator.pop.
 void main() => runApp(MyApp());
 
 class CustomPage extends BeamPage {
@@ -39,13 +37,18 @@ class MyApp extends StatelessWidget {
     buildListener: (_, _2) => print("Rebuid"),
     locationBuilder: RoutesLocationBuilder(routes: {
       '/': (context, state) => CustomPage(
+          title: "Page /",
           key: ValueKey("/"),
           child: Scaffold(
               body: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                Text("CustomPage with Navigator.pop"),
                 ElevatedButton(
-                    onPressed: () => context.beamToNamed('/2'),
+                    onPressed: (){
+                      print("Clicked on change");
+                      context.beamToNamed('/2');
+                    },
                     child: Text("change")),
                 Stack(children: [
                   Hero(
@@ -58,6 +61,7 @@ class MyApp extends StatelessWidget {
                 ])
               ]))),
       '/2': (context, state) => CustomPage(
+          title: "Page /2",
           key: ValueKey("/2"),
           child: Scaffold(
               body: Column(
@@ -65,7 +69,10 @@ class MyApp extends StatelessWidget {
                   children: [
                 ElevatedButton(
                     //beamToBack ... breaks hero
-                    onPressed: () => context.beamBack(),
+                    onPressed: () {
+                      print("Clicked on back");
+                      rootDelegate.navigator.pop();
+                    },
                     child: Text("back")),
                 Stack(children: [
                   Hero(
