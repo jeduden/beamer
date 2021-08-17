@@ -663,6 +663,7 @@ void main() {
 
       delegate.beamToNamed('/1');
       await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
       await tester.tap(find.text('1'));
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));

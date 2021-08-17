@@ -37,52 +37,6 @@ class NoAnimationTransitionDelegate extends TransitionDelegate<void> {
   }
 }
 
-class ReverseTransitionDelegate extends TransitionDelegate<void> {
+class ReverseTransitionDelegate extends DefaultTransitionDelegate<void> {
   const ReverseTransitionDelegate() : super();
-
-  @override
-  Iterable<RouteTransitionRecord> resolve({
-    required List<RouteTransitionRecord> newPageRouteHistory,
-    required Map<RouteTransitionRecord?, RouteTransitionRecord>
-        locationToExitingPageRoute,
-    required Map<RouteTransitionRecord?, List<RouteTransitionRecord>>
-        pageRouteToPagelessRoutes,
-  }) {
-    final List<RouteTransitionRecord> results = <RouteTransitionRecord>[];
-
-    void handleExitingRoute(RouteTransitionRecord? location) {
-      final RouteTransitionRecord? exitingPageRoute =
-          locationToExitingPageRoute[location];
-      if (exitingPageRoute == null) return;
-      if (exitingPageRoute.isWaitingForExitingDecision) {
-        final bool hasPagelessRoute =
-            pageRouteToPagelessRoutes.containsKey(exitingPageRoute);
-        exitingPageRoute.markForPop(exitingPageRoute.route.currentResult);
-        if (hasPagelessRoute) {
-          final List<RouteTransitionRecord> pagelessRoutes =
-              pageRouteToPagelessRoutes[exitingPageRoute]!;
-          for (final RouteTransitionRecord pagelessRoute in pagelessRoutes) {
-            if (pagelessRoute.isWaitingForExitingDecision) {
-              pagelessRoute.markForPop(pagelessRoute.route.currentResult);
-            }
-          }
-        }
-      }
-      results.add(exitingPageRoute);
-
-      handleExitingRoute(exitingPageRoute);
-    }
-
-    for (final RouteTransitionRecord pageRoute in newPageRouteHistory) {
-      if (pageRoute.isWaitingForEnteringDecision) {
-        pageRoute.markForAdd();
-      }
-      results.add(pageRoute);
-      handleExitingRoute(pageRoute);
-    }
-
-    handleExitingRoute(null);
-
-    return results;
-  }
 }
