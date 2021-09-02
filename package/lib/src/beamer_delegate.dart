@@ -459,6 +459,47 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
     bool popBeamLocationOnPop = false,
     bool stacked = true,
   }) {
+    updateToNamed(
+      uri,
+      routeState: routeState,
+      data: data,
+      popToNamed: popToNamed,
+      transitionDelegate: transitionDelegate,
+      beamBackOnPop: beamBackOnPop,
+      popBeamLocationOnPop: popBeamLocationOnPop,
+      stacked: stacked
+    );
+  }
+
+  /// {@template updateToNamed}
+  /// like [beamToNamed] but allowing to change build related parameters.
+  /// 
+  /// Beams to [BeamLocation] that has [uri] contained within its
+  /// [BeamLocation.pathBlueprintSegments].
+  ///
+  /// For example
+  /// ```dart
+  /// Beamer.of(context).beamToNamed(
+  ///   '/user/1/transactions?perPage=10',
+  ///   data: {'favoriteUser': true},,
+  /// );
+  /// ```
+  ///
+  /// See [update] for more details.
+  /// {@endtemplate}
+  void updateToNamed(
+    String uri, {
+    Object? routeState,
+    Object? data,
+    String? popToNamed,
+    TransitionDelegate? transitionDelegate,
+    bool beamBackOnPop = false,
+    bool popBeamLocationOnPop = false,
+    bool stacked = true,
+    bool buildBeamLocation = true,
+    bool rebuild = true,
+    bool updateParent = true,
+  }) {
     update(
       configuration: RouteInformation(location: uri, state: routeState),
       beamParameters: _currentBeamParameters.copyWith(
@@ -470,6 +511,9 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
         stacked: stacked,
       ),
       data: data,
+      buildBeamLocation: buildBeamLocation,
+      rebuild: rebuild,
+      updateParent: updateParent
     );
   }
 
