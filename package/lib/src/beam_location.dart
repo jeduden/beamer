@@ -202,7 +202,7 @@ abstract class BeamLocation<T extends RouteInformationSerializable>
   ///   );
   /// }
   /// ```
-  Widget builder(BuildContext context, Widget navigator) => navigator;
+  Widget builder(BuildContext context, Navigator navigator) => navigator;
 
   /// Represents the "form" of URI paths supported by this [BeamLocation].
   ///
@@ -287,10 +287,10 @@ class RoutesBeamLocation extends BeamLocation<BeamState> {
   Map<Pattern, dynamic Function(BuildContext, BeamState)> routes;
 
   /// A wrapper used as [BeamLocation.builder].
-  Widget Function(BuildContext context, Widget navigator)? navBuilder;
+  Widget Function(BuildContext context, Navigator navigator)? navBuilder;
 
   @override
-  Widget builder(BuildContext context, Widget navigator) {
+  Widget builder(BuildContext context, Navigator navigator) {
     return navBuilder?.call(context, navigator) ?? navigator;
   }
 

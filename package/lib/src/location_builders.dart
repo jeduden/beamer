@@ -41,7 +41,7 @@ class RoutesLocationBuilder {
   final Map<Pattern, dynamic Function(BuildContext, BeamState)> routes;
 
   /// Used as a [BeamLocation.builder].
-  Widget Function(BuildContext context, Widget navigator)? builder;
+  Widget Function(BuildContext context, Navigator navigator)? builder;
 
   BeamLocation call(
     RouteInformation routeInformation,
