@@ -172,7 +172,8 @@ class BeamPage extends Page {
   ///
   /// [settings] must be passed to [PageRoute.settings].
   /// [child] is the child of this [BeamPage]
-  final Route Function(RouteSettings settings, Widget child)? routeBuilder;
+  /// [context] is the build context.
+  final Route Function(RouteSettings settings, Widget child, BuildContext context)? routeBuilder;
 
   /// Whether to present current [BeamPage] as a fullscreen dialog
   ///
@@ -188,7 +189,7 @@ class BeamPage extends Page {
   @override
   Route createRoute(BuildContext context) {
     if (routeBuilder != null) {
-      return routeBuilder!(this, child);
+      return routeBuilder!(this, child,context);
     }
     switch (type) {
       case BeamPageType.cupertino:
