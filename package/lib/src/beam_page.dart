@@ -37,8 +37,7 @@ class BeamPage extends Page {
     RouteInformationSerializable state,
     BeamPage poppedPage,
   ) {
-    if (!delegate.navigator.canPop() ||
-        delegate.beamingHistoryCompleteLength < 2) {
+    if (!delegate.navigator.canPop()) {
       return false;
     }
 
@@ -49,14 +48,18 @@ class BeamPage extends Page {
     // Take the history element that is being popped and the one before
     // as they will be compared later on to fine-tune the pop experience.
     final poppedHistoryElement = delegate.removeLastHistoryElement()!;
-    final previousHistoryElement = delegate.beamingHistory.last.history.last;
+    HistoryElement? previousHistoryElement = delegate.beamingHistory.isNotEmpty
+        ? delegate.beamingHistory.last.history.last
+        : null;
 
     // Convert both to Uri as their path and query will be compared.
     final poppedUri = Uri.parse(
       poppedHistoryElement.state.routeInformation.location ?? '/',
     );
-    final previousUri = Uri.parse(
-      previousHistoryElement.state.routeInformation.location ?? '/',
+    Uri previousUri = Uri.parse(
+      previousHistoryElement != null
+          ? previousHistoryElement.state.routeInformation.location ?? '/'
+          : delegate.initialPath,
     );
 
     final poppedPathSegments = poppedUri.pathSegments;
@@ -69,9 +72,13 @@ class BeamPage extends Page {
     var popUri = Uri(
       path: popPath,
       queryParameters: poppedPage.keepQueryOnPop
-          ? poppedQueryParameters
+          ? poppedQueryParameters.isEmpty
+              ? null
+              : poppedQueryParameters
           : (popPath == previousUri.path)
-              ? previousUri.queryParameters
+              ? previousUri.queryParameters.isEmpty
+                  ? null
+                  : previousUri.queryParameters
               : null,
     );
 
@@ -170,10 +177,11 @@ class BeamPage extends Page {
 
   /// A builder for custom [Route] to use in [createRoute].
   ///
-  /// [settings] must be passed to [PageRoute.settings].
-  /// [child] is the child of this [BeamPage]
   /// [context] is the build context.
-  final Route Function(RouteSettings settings, Widget child, BuildContext context)? routeBuilder;
+  /// [child] is the child of this [BeamPage]
+  /// [settings] must be passed to [PageRoute.settings].
+  final Route Function(
+      BuildContext context, RouteSettings settings, Widget child)? routeBuilder;
 
   /// Whether to present current [BeamPage] as a fullscreen dialog
   ///
@@ -189,7 +197,7 @@ class BeamPage extends Page {
   @override
   Route createRoute(BuildContext context) {
     if (routeBuilder != null) {
-      return routeBuilder!(this, child,context);
+      return routeBuilder!(context, this, child);
     }
     switch (type) {
       case BeamPageType.cupertino:

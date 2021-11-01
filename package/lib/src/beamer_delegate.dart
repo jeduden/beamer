@@ -8,6 +8,15 @@ import 'package:flutter/widgets.dart';
 import 'beam_update_guard.dart';
 import 'utils.dart';
 
+/// State of the route passed to [BeamDelegate.checkedRouteListener]
+enum RouteCheckState {
+  /// [targetRouteInfo] and [targetData] no [BeamUpdateGuard] has rej
+  accepted,
+
+  /// the route has been rejected by a [BeamUpdateGuard]
+  rejected,
+}
+
 /// A delegate that is used by the [Router] to build the [Navigator].
 ///
 /// This is "the beamer", the one that does the actual beaming.
@@ -16,7 +25,8 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
   BeamerDelegate({
     required this.locationBuilder,
     this.initialPath = '/',
-    this.routeListener,
+    this.checkedRouteListener,
+    this.appliedRouteListener,
     this.buildListener,
     this.preferUpdate = true,
     this.removeDuplicateHistory = true,
@@ -112,8 +122,8 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
   /// ```dart
   /// locationBuilder: RoutesLocationBuilder(
   ///   routes: {
-  ///     '/': (context) => HomeScreen(),
-  ///     '/another': (context) => AnotherScreen(),
+  ///     '/': (context, state) => HomeScreen(),
+  ///     '/another': (context, state) => AnotherScreen(),
   ///   },
   /// ),
   /// ```
@@ -129,9 +139,30 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
   /// when there are no path segments.
   final String initialPath;
 
-  /// The routeListener will be called on every navigation event
-  /// and will recieve the [configuration] and [currentBeamLocation].
-  final void Function(RouteInformation, BeamLocation)? routeListener;
+  /// The [appliedRouteListener] will be called when every the [currentBeamLocation]
+  /// changed and will receices:
+  /// [appliedRouteInfo] the currently applied [RouteInformation]
+  /// [delegate] the [BeamerDelegate]
+  final void Function(
+          RouteInformation appliedRouteInfo, BeamerDelegate delegate)?
+      appliedRouteListener;
+
+  /// The [checkedRouteListener] will be called on every navigation event
+  /// and a reference to the current beam location
+  /// and will recieve:
+  /// [originLocation] the current beam location
+  /// [checkedTargetRouteInfo] and [checkedTargetData] of the target route, note that both
+  /// not been applied to [BeamDelegate.currentLocation] !
+  /// further the [routeCheckState] :
+  /// [RouteCheckState.rejected] indicates:
+  /// - an [BeamUpdateGuard] has rejected the route.
+  /// [RouteCheckState.accepted] indicates:
+  /// - no [BeamUpdateGuard] has rejected the route.
+  final void Function(
+      BeamLocation originLocation,
+      RouteInformation checkedTargetRouteInfo,
+      Object? checkedTargetData,
+      RouteCheckState checkState)? checkedRouteListener;
 
   /// The buildListener will be called every time after the [currentPages]
   /// are updated. it receives a reference to this delegate.
@@ -316,21 +347,25 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
     bool buildBeamLocation = true,
     bool rebuild = true,
     bool updateParent = true,
+    bool updateRouteInformation = true,
   }) {
     
     configuration = configuration?.copyWith(
       location: Utils.trimmed(configuration.location),
     );
-    if(configuration != null && _checkAndApplyUpdateGuards(configuration) != null) {
-      return;
-    }
-    if (beamParameters != null) {
-      _currentBeamParameters = beamParameters;
+
+    if (configuration != null) {
+      final checkState = _checkAndApplyUpdateGuards(configuration, data) != null
+          ? RouteCheckState.rejected
+          : RouteCheckState.accepted;
+      checkedRouteListener?.call(
+          currentBeamLocation, configuration, data, checkState);
+      if (checkState == RouteCheckState.rejected) {
+        return;
+      }
     }
 
-    // popConfiguration = beamParameters.popConfiguration?.copyWith(
-    //   location: Utils.trimmed(beamParameters.popConfiguration?.location),
-    // );
+    _currentBeamParameters = beamParameters ?? _currentBeamParameters;
 
     if (clearBeamingHistoryOn.contains(configuration?.location)) {
       for (var beamLocation in beamingHistory) {
@@ -338,8 +373,6 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
       }
       beamingHistory.clear();
     }
-
-    active = true;
 
     this.configuration = configuration ??
         currentBeamLocation.history.last.state.routeInformation.copyWith();
@@ -357,26 +390,29 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
     if (data != null) {
       currentBeamLocation.data = data;
     }
-    routeListener?.call(this.configuration, currentBeamLocation);
+    appliedRouteListener?.call(this.configuration, this);
 
-    bool parentDidUpdate = false;
-    if (parent != null &&
-        this.updateParent &&
-        updateParent &&
-        (configuration?.location != _parent?.configuration.location ||
-            configuration?.state != _parent?.configuration.state)) {
-      _parent!.update(
+    if (this.updateParent && updateParent) {
+      _parent?.update(
         configuration: this.configuration.copyWith(),
         rebuild: false,
+        updateRouteInformation: false,
       );
-      parentDidUpdate = true;
     }
 
-    if (!rebuild && !parentDidUpdate) {
-      updateRouteInformation(this.configuration);
+    // We should call [updateRouteInformation] manually only if
+    // notifyListeners() is not going to be called.
+    // This is when !rebuild or
+    // when this will notifyListeners (when rebuild), but is not a top-most
+    // router in which case it cannot report the route implicitly.
+    if (updateRouteInformation && active && (!rebuild || parent != null)) {
+      this.updateRouteInformation(this.configuration);
     }
 
     if (rebuild) {
+      // This will implicitly update the route information,
+      // but only if this is the top-most router
+      // See [currentConfiguration].
       notifyListeners();
     }
   }
@@ -683,7 +719,10 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
   Widget build(BuildContext context) {
     BeamGuard? guard = _checkGuards(context, currentBeamLocation);
     if (guard != null) {
-      _applyGuard(guard, context);
+      final originLocation = beamingHistory.length > 1
+          ? beamingHistory[beamingHistory.length - 2]
+          : null;
+      _applyGuard(guard, context, originLocation, currentBeamLocation);
     }
 
     if (currentBeamLocation is NotFound) {
@@ -756,7 +795,8 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
     return null;
   }
 
-  void _applyGuard(BeamGuard guard, BuildContext context) {
+  void _applyGuard(BeamGuard guard, BuildContext context,
+      BeamLocation? originLocation, BeamLocation targetLocation) {
     if (guard.showPage != null) {
       return;
     }
@@ -770,17 +810,19 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
         rebuild: false,
       );
     } else if (guard.beamTo != null) {
-      redirectLocation = guard.beamTo!(context);
+      redirectLocation = guard.beamTo!(context, originLocation, targetLocation);
     } else if (guard.beamToNamed != null) {
       redirectLocation = locationBuilder(
-        RouteInformation(location: guard.beamToNamed!),
+        RouteInformation(
+            location: guard.beamToNamed!(originLocation, targetLocation)),
         _currentBeamParameters.copyWith(),
       );
     }
 
     final anotherGuard = _checkGuards(context, redirectLocation);
     if (anotherGuard != null) {
-      return _applyGuard(anotherGuard, context);
+      return _applyGuard(
+          anotherGuard, context, originLocation, redirectLocation);
     }
 
     currentBeamLocation.removeListener(_updateFromLocation);
@@ -791,17 +833,18 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
     _updateFromLocation(rebuild: false);
   }
 
-
   BeamUpdateGuard? _checkAndApplyUpdateGuards(
     RouteInformation routeInformation,
+    Object? data,
   ) {
     // TODO: make guards async => update would be async and all beamXXX functions
     // TODO: grand parents are not processed => recursive
-    // TODO: locations cannot of have update guards - we would first 
+    // TODO: locations cannot of have update guards - we would first
     //       need to have the effective target location for the given routeInformation
     for (final guard in (parent?.updateGuards ?? []) + updateGuards) {
-      if (guard.shouldGuard(routeInformation) && !guard.check(this, routeInformation)) {
-        guard.redirect(this, routeInformation);
+      if (guard.shouldGuard(currentBeamLocation, routeInformation, data) &&
+          !guard.check(currentBeamLocation, routeInformation, data)) {
+        guard.redirect(this, routeInformation, data);
         return guard;
       }
     }
@@ -959,6 +1002,7 @@ class BeamerDelegate extends RouterDelegate<RouteInformation>
       configuration: _parent!.configuration.copyWith(),
       rebuild: rebuild,
       updateParent: false,
+      updateRouteInformation: false,
     );
   }
 

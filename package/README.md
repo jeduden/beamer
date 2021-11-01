@@ -7,6 +7,9 @@
 <a href="https://codecov.io/gh/slovnicki/beamer">
 <img src="https://codecov.io/gh/slovnicki/beamer/branch/master/graph/badge.svg?token=TO09CQU09C"/>
 </a>
+<a href="https://github.com/Solido/awesome-flutter">
+<img alt="Awesome Flutter" src="https://img.shields.io/badge/Awesome-Flutter-blue.svg?longCache=true&style=flat-square" />
+</a>
 </p>
 
 <p align="center">
@@ -644,6 +647,10 @@ The code for the nested navigation example app is available [here](https://githu
 # Migrating
 
 ## From 0.14 to 0.15
+
+(TBA)
+
+See [CHANGELOG](https://github.com/slovnicki/beamer/blob/master/package/CHANGELOG.md).
 
 ## From 0.13 to 0.14
 
